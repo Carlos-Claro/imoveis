@@ -5,6 +5,7 @@ import time
 import os
 import sys
 import json
+import random
 
 class Imoveis(object):
     
@@ -45,8 +46,8 @@ class Imoveis(object):
         if itens.status_code == 200:
             i = itens.json()
             for k,v in i.items():
-                post = json.dumps(self.set_item(v))
-                print(post)
+                post = self.set_item(v)
+                #print(post)
                 exit()
                 res = requests.post(self.URL_POST,json=post)
                 del post
@@ -54,62 +55,6 @@ class Imoveis(object):
         return True
     
     imovel_ativo = {}
-    
-    def set_imovel(self,imovel):
-        self.imovel_ativo = imovel
-    
-    def get_campo_imovel(self,campo):
-        return self.imovel_ativo[campo]
-    
-    pontos = {
-            'max':50000
-            ,'faixa1':40000
-            ,'faixa2':30000
-            ,'faixa3':20000}
-    valores_ordem = {
-            'descricao': {'pontos':1000,'comparacao':'string'},
-            'preco': {'pontos':1000,'comparacao':'not_0'},
-            'cidades_id': {'pontos':5000,'comparacao':'not_0'},
-            'images': {'pontos':5000,'comparacao':'count'},
-            'imoveis_tipos_id': {'pontos':1000,'comparacao':'not_0'}
-                     }
-    negativos = 0
-    
-    def get_negativos(self):
-        return self.negativos
-    
-    def set_negativos(self,pontos):
-        if pontos == 0:
-            self.negativos = 0
-        else:
-            self.negativos = self.negativos + pontos
-    
-    def set_pontos(self,item):
-        self.set_negativos(0)
-        for k,v in self.valores_ordem.items():
-            if k in item:
-                if v['comparacao'] == 'string':
-                    if not isinstance(item[k],str) or item[k] is '':
-                        self.negativos = self.set_negativos(v['pontos'])
-                elif v['comparacao'] == 'not_0':
-                    if item[k] == 0:
-                        self.negativos = self.set_negativos(v['pontos'])
-                elif v['comparacao'] == 'count':
-                    if len(item[k]) == 0:
-                        self.negativos = self.set_negativos(v['pontos'])
-            else:
-                print(k)
-                self.negativos = self.set_negativos(v['pontos'])
-    
-    
-    def get_ordem(self,item):
-        return item
-        
-        
-    var_float = ['preco_venda','preco_locacao', 'preco_locacao_dia', 'preco','area','area_terreno','area_util','latitude','longitude']
-    var_int = ['quartos','garagens','banheiros','tipo_venda','tipo_locacao','tipo_locacao_dia','destaque_tipo','destaque_bairro','_id']
-    var_para = {'tipo_venda':'venda','tipo_locacao':'locacao','tipo_locacao_dia':'locacao_dia'}
-    gerado_image = True
     
     def set_item(self,item):
         self.set_imovel(item)
@@ -131,9 +76,91 @@ class Imoveis(object):
                 item['imovel_para'].append(p)
         if 'longitude' in item and 'latitude' in item:
             item['location'] = [item['longitude'],item['latitude']]
-        #item['ordem'] = self.get_ordem(item)
+        item['ordem'] = self.get_ordem(item)
         return item
     
+    def set_imovel(self,imovel):
+        self.imovel_ativo = imovel
+    
+    def get_campo_imovel(self,campo):
+        return self.imovel_ativo[campo]
+    
+    faixas = [
+            {'min':90001, 'max':100000},
+            {'min':80001, 'max':90000},
+            {'min':70001, 'max':80000},
+            {'min':60001, 'max':70000},
+            {'min':50001, 'max':60000},
+            {'min':40001, 'max':50000},
+            {'min':30001, 'max':40000},
+            {'min':20001, 'max':30000},
+            {'min':10001, 'max':20000},
+            {'min':0, 'max':10000},
+            ]
+    valores_ordem = {
+            'descricao': {'pontos':5000,'comparacao':'string'},
+            'preco': {'pontos':10000,'comparacao':'not_0'},
+            'cidades_id': {'pontos':10000,'comparacao':'not_0'},
+            'images': {'pontos':10000,'comparacao':'count'},
+            'imoveis_tipos_id': {'pontos':5000,'comparacao':'not_0'}
+                     }
+    negativos = 0
+    
+    def get_negativos(self, faixa):
+        if faixa:
+            base = 40002 - self.get_negativos(False)
+            for k,v in self.faixas.items():
+                if base >= v['min'] and base <= v['max']:
+                    return k
+        else:
+            return self.negativos
+    
+    def set_negativos(self,pontos):
+        if pontos == 0:
+            self.negativos = 0
+        else:
+            self.negativos = self.negativos + pontos
+    
+    def set_pontos(self,item):
+        self.set_negativos(0)
+        for k,v in self.valores_ordem.items():
+            if k in item:
+                if v['comparacao'] == 'string':
+                    if not isinstance(item[k],str) or item[k] is '':
+                        self.set_negativos(v['pontos'])
+                elif v['comparacao'] == 'not_0':
+                    if item[k] == 0:
+                        self.set_negativos(v['pontos'])
+                elif v['comparacao'] == 'count':
+                    if len(item[k]) == 0:
+                        self.set_negativos(v['pontos'])
+            else:
+                self.set_negativos(v['pontos'])
+    
+    def get_ordem(self,item):
+        data_relevancia = {'id_empresa':item['id_empresa'],'tipo_negocio':item['tipo'],'id_tipo':item['imoveis_tipos_id'],'id_cidade':item['cidades_id']}
+        relevancia = self.get_relevancia(data_relevancia)
+        return relevancia
+    
+    def post_relevancia(self,data,ordem):
+        itens = requests.post(self.URL_RELEVANCIA, params=data)
+        data['id_imovel'] = self.get_campo_imovel('id')
+        data['ordem'] = ordem
+        data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        itens = requests.post(self.URL_RELEVANCIA_LOG, params=data)
+    
+    def get_relevancia(self, data):
+        itens = requests.get(self.URL_RELEVANCIA, params=data)
+        qtde = itens.json()
+        if qtde < 9:
+            return random.randrange(self.faixas[qtde]['min'],self.faixas[qtde]['max'])
+        else:
+            return random.randrange(0,10000)
+        
+    var_float = ['preco_venda','preco_locacao', 'preco_locacao_dia', 'preco','area','area_terreno','area_util','latitude','longitude']
+    var_int = ['quartos','garagens','banheiros','tipo_venda','tipo_locacao','tipo_locacao_dia','destaque_tipo','destaque_bairro','_id']
+    var_para = {'tipo_venda':'venda','tipo_locacao':'locacao','tipo_locacao_dia':'locacao_dia'}
+    gerado_image = True
     url_image = 'https://images.portaisimobiliarios.com.br/portais/'
     arquivo_formato = '{{id_empresa}}/{{id_imovel}}/destaque_{{id_imovel}}_{{id_image}}.{{extensao}}'
     
@@ -157,16 +184,16 @@ class Imoveis(object):
     
     def set_images(self,images):
         retorno = {}
-        for v in images:
-            print(v)
-            retorno[v['id']] = {}
-            retorno[v['id']]['arquivo'] = self.get_image_nome(v,False)
-            retorno[v['id']]['original'] = self.get_image_nome(v,True)
-            retorno[v['id']]['titulo'] = v['titulo']
-            if v['titulo'] and v['titulo'].strip():
-                retorno[v['id']]['titulo'] = self.get_campo_imovel('nome')
-            retorno[v['id']]['id'] = v['id']
-            retorno[v['id']]['gerado_image'] = v['gerado_image'];
+        if len(images) > 0:
+            for v in images:
+                retorno[v['id']] = v
+                retorno[v['id']]['arquivo'] = self.get_image_nome(v,False)
+                retorno[v['id']]['original'] = self.get_image_nome(v,True)
+                retorno[v['id']]['titulo'] = v['titulo']
+                if v['titulo'] and v['titulo'].strip():
+                    retorno[v['id']]['titulo'] = self.get_campo_imovel('nome')
+                retorno[v['id']]['id'] = v['id']
+                retorno[v['id']]['gerado_image'] = v['gerado_image'];
         return retorno
     
     
