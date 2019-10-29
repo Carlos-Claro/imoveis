@@ -7,9 +7,11 @@ import sys
 import json
 import random
 
+
 class Imoveis(object):
     
     def __init__(self):
+        self.inicio = time.time()
         self.args = sys.argv
         if 'localhost' in self.args:
             self.localhost = True
@@ -42,8 +44,9 @@ class Imoveis(object):
                 self.integra_mongo()
         
     def integra_mongo(self):
+        
         g = {}
-        g['limit'] = 10
+        g['limit'] = 150
         itens = requests.get(self.URL_GET, params=g)
         if itens.status_code == 200:
             i = itens.json()
@@ -59,6 +62,8 @@ class Imoveis(object):
                     print(res.status_code)
                 del post
                 del res
+        self.fim = time.time()
+        print(self.fim-self.inicio)
         return True
     
     imovel_ativo = {}
@@ -73,15 +78,17 @@ class Imoveis(object):
         for f in self.var_float:
             if f in item and item[f] is not None:
                 if len(str(item[f])) > 0:
-                    item[f] = float(item[f])
+                    item[f] = float(self.retira_string(item[f],'float'))
             else:
                 item[f] = 0
         for i in self.var_int:
+            print(item[i], i)
             if i in item and item[i] is not None:
-                if str(item[i]).lower() in ['sim','não','nao']:
+                if str(item[i]).lower() in ['sim','não','nao','']:
                     item[i] = 1
                 else:
-                    item[i] = int(item[i])
+                    print(item[i])
+                    item[i] = int(self.retira_string(item[i],'int'))
             else:
                 item[i] = 0
         item['imovel_para'] = []
@@ -92,6 +99,20 @@ class Imoveis(object):
             item['location'] = [item['longitude'],item['latitude']]
         item['ordem'] = self.get_ordem(item)
         return item
+    
+    def retira_string(self,valor,tipo):
+        retorno = '';
+        if ( isinstance(valor,float) and tipo is 'float' ) or ( isinstance(valor,int) and tipo is 'int' ):
+            return valor
+        v = str(valor).strip()
+        print("'"+v+"'")
+        print(len(v))
+        for i in range(len(v)):
+            print(i, valor[i])
+            if i in ['-','.',':'] or isinstance(int(valor[i]),int):
+                retorno = retorno + str(valor[i])
+        print(retorno)
+        return retorno
     
     def set_imovel(self,imovel):
         self.imovel_ativo = imovel
@@ -196,12 +217,11 @@ class Imoveis(object):
     var_para = {'tipo_venda':'venda','tipo_locacao':'locacao','tipo_locacao_dia':'locacao_dia'}
     gerado_image = True
     url_image = 'https://images.portaisimobiliarios.com.br/portais/'
-    arquivo_formato = '{{id_empresa}}/{{id_imovel}}/destaque_{{id_imovel}}_{{id_image}}.{{extensao}}'
+    arquivo_formato = '{}/{}/destaque_{}_{}.{}'
     
     def set_arquivo_destaque(self, image):
         arquivo = self.url_image + self.arquivo_formato
-        arquivo.format(image['id_empresa'],image['id_imovel'],image['id_imovel'],image['id'],image['extensao'])
-        return arquivo
+        return arquivo.format(image['id_empresa'],image['id_imovel'],image['id_imovel'],image['id'],image['extensao'])
     
     def get_image_nome(self,image, original):
         if 'http' in image['arquivo']:
