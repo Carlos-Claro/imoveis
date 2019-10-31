@@ -138,7 +138,7 @@ class Imoveis(object):
         if ( isinstance(valor,float) and tipo is 'float' ) or ( isinstance(valor,int) and tipo is 'int' ):
             return valor
         v = str(valor).strip()
-        alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZ'
+        alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZçã/'
         for a in alfa:
             if a in v:
                 v = v.replace(a,'')
