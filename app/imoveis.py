@@ -24,8 +24,13 @@ class Imoveis(object):
         self.URL_GET_MONGO = self.URI + 'imoveismongo/'
         self.URL_POST = self.URI + 'imoveis_integra/'
         self.URL_PUT = self.URI + 'imovel/'
+        self.URL_RELEVANCIA_DROP = self.URI + 'imovel_relevancia_drop/'
         self.URL_RELEVANCIA = self.URI + 'imoveis_relevancia/'
         self.URL_RELEVANCIA_LOG = self.URI + 'imoveis_relevancia_log/'
+        self.ARQUIVO_LOG = '/var/log/sistema/integra_mongo.log'
+        self.FORMATO_LOG = '{data} - status_code {status_code} - empresa {id_empresa} - id {id} - ordem {ordem} - funcao: {acao} - tempo: {tempo} '
+        self.FORMATO_LOG_DADOS = '{data} - status_code {status_code} - qtde: {qtde} - funcao: {acao}_totais - tempo: {tempo} '
+        self.FORMATO_LOG_RELEVANCIA = '{data} - status_code {status_code} - empresa {id_empresa} - id {id} - ordem {ordem} - funcao: {acao}'
         self.argumentos = {}
         for a in self.args:
             if '-' in a:
@@ -43,30 +48,56 @@ class Imoveis(object):
             else:
                 self.integra_mongo()
         
-    def integra_mongo(self):
-        
-        g = {}
-        g['limit'] = 150
-        itens = requests.get(self.URL_GET, params=g)
-        if itens.status_code == 200:
-            i = itens.json()
-            for k,v in i.items():
-                post = self.set_item(v)
-                print(post['_id'])
-                res = requests.post(self.URL_POST,json=json.dumps(post))
-                print(res.status_code)
-                if res.status_code == 200:
-                    self.post_relevancia(post['ordem'])
-                else:
-                    print('não foi possivel salvar ' + str(post['id']))
-                    print(res.status_code)
-                del post
-                del res
-        self.fim = time.time()
-        print(self.fim-self.inicio)
+    def drop_relevancia(self):
         return True
+        
+    def integra_mongo(self):
+        g = {}
+        g['limit'] = 140
+        data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
+        try:
+            itens = requests.get(self.URL_GET, params=g)
+            status_code = itens.status_code
+        except:
+            status_code = 500
+        data_log_dados['status_code'] = status_code
+        if status_code == 200:
+            i = itens.json()
+            data_log_dados['qtde'] = len(i)
+            if len(i) > 0:
+                self.processa_itens(i)
+        self.fim = time.time()
+        data_log_dados['tempo'] = self.fim-self.inicio
+        linha = self.FORMATO_LOG_DADOS.format(**data_log_dados)
+        with open(self.ARQUIVO_LOG,'a') as arq:
+            arq.write(linha)
+            arq.write('\r\n')
     
     imovel_ativo = {}
+    
+    def processa_itens(self,itens):
+        for k,v in itens.items():
+            data_log = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'item_mongo','ordem':0,'id':v['id'],'id_empresa':v['id_empresa']}
+            tempo_i = time.time()
+            post = self.set_item(v)
+            data_log['ordem'] = post['ordem']
+            try:
+                res = requests.post(self.URL_POST,json=json.dumps(post))
+                status_code = res.status_code
+            except:
+                status_code = 500
+            data_log['status_code'] = status_code
+            if status_code == 200:
+                self.post_relevancia(post['ordem'])
+            del post
+            del res
+            tempo_f = time.time()
+            data_log['tempo'] = tempo_f - tempo_i
+            del tempo_i, tempo_f
+            linha = self.FORMATO_LOG.format(**data_log)
+            with open(self.ARQUIVO_LOG,'a') as arq:
+                arq.write(linha)
+                arq.write('\r\n')
     
     def set_item(self,item):
         self.set_imovel(item)
@@ -78,16 +109,19 @@ class Imoveis(object):
         for f in self.var_float:
             if f in item and item[f] is not None:
                 if len(str(item[f])) > 0:
-                    item[f] = float(self.retira_string(item[f],'float'))
+                    item[f] = float(item[f])
             else:
                 item[f] = 0
+        for f in self.var_latitude:
+            if f in item and item[f]:
+                item[f] = float(self.retira_string(item[f],'float'))
+            else:
+                item[f] = None
         for i in self.var_int:
-            print(item[i], i)
             if i in item and item[i] is not None:
-                if str(item[i]).lower() in ['sim','não','nao','']:
+                if str(item[i]).strip().lower() in ['sim','não','nao','','N','S']:
                     item[i] = 1
                 else:
-                    print(item[i])
                     item[i] = int(self.retira_string(item[i],'int'))
             else:
                 item[i] = 0
@@ -101,18 +135,16 @@ class Imoveis(object):
         return item
     
     def retira_string(self,valor,tipo):
-        retorno = '';
         if ( isinstance(valor,float) and tipo is 'float' ) or ( isinstance(valor,int) and tipo is 'int' ):
             return valor
         v = str(valor).strip()
-        print("'"+v+"'")
-        print(len(v))
-        for i in range(len(v)):
-            print(i, valor[i])
-            if i in ['-','.',':'] or isinstance(int(valor[i]),int):
-                retorno = retorno + str(valor[i])
-        print(retorno)
-        return retorno
+        alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZ'
+        for a in alfa:
+            if a in v:
+                v = v.replace(a,'')
+        if len(v) == 0:
+            v = 0
+        return v
     
     def set_imovel(self,imovel):
         self.imovel_ativo = imovel
@@ -186,22 +218,38 @@ class Imoveis(object):
     
     def post_relevancia(self,ordem):
         data = self.get_data_relevancia()
-        rel = requests.post(self.URL_RELEVANCIA, params=data)
-        if rel.status_code is 200:
-            print('\n salvou relevancia ' + str(data['id_empresa']))
-        else:
-            print('\n não salvou relevancia ' + str(data['id_empresa']))
-        data['id_imovel'] = self.get_campo_imovel('id')
-        data['ordem'] = ordem
-        data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-        log = requests.post(self.URL_RELEVANCIA_LOG, params=data)
-        if log.status_code is 200:
-            print('\n salvou relevancia log ' + str(data['id_empresa']))
-        else:
-            print('\n não salvou relevancia log ' + str(data['id_empresa']))
-        data_up = {}
-        data_up['integra_mongo_db'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-        upd = requests.put(self.URL_PUT + str(data['id_imovel']), params=data_up)
+        try:
+            rel = requests.post(self.URL_RELEVANCIA, params=data)
+            status_code = rel.status_code
+        except:
+            status_code = 500
+        data_log_r = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'relevancia','ordem':ordem,'id':self.get_campo_imovel('id'),'id_empresa':self.get_campo_imovel('id_empresa')}
+        data_log_r['status_code'] = status_code
+        linha = self.FORMATO_LOG_RELEVANCIA.format(**data_log_r)
+        with open(self.ARQUIVO_LOG,'a') as arq:
+            arq.write(linha)
+            arq.write('\r\n')
+        if status_code is 200:
+            data['id_imovel'] = self.get_campo_imovel('id')
+            data['ordem'] = ordem
+            data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            try:
+                log = requests.post(self.URL_RELEVANCIA_LOG, params=data)
+            except:
+                pass
+            data_up = {}
+            data_up['integra_mongo_db'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            try:
+                upd = requests.put(self.URL_PUT + str(data['id_imovel']), params=data_up)
+                status_code_up = rel.status_code
+            except:
+                status_code_up = 500
+            data_log_r['status_code'] = status_code_up
+            data_log_r['acao'] = 'updateMySQL'
+            linha = self.FORMATO_LOG_RELEVANCIA.format(**data_log_r)
+            with open(self.ARQUIVO_LOG,'a') as arq:
+                arq.write(linha)
+                arq.write('\r\n')
         
     
     def get_relevancia(self, data):
@@ -212,7 +260,8 @@ class Imoveis(object):
         else:
             return random.randrange(0,10000)
         
-    var_float = ['preco_venda','preco_locacao', 'preco_locacao_dia', 'preco','area','area_terreno','area_util','latitude','longitude']
+    var_latitude = ['latitude','longitude']
+    var_float = ['preco_venda','preco_locacao', 'preco_locacao_dia', 'preco','area','area_terreno','area_util']
     var_int = ['quartos','garagens','banheiros','tipo_venda','tipo_locacao','tipo_locacao_dia','destaque_tipo','destaque_bairro','_id']
     var_para = {'tipo_venda':'venda','tipo_locacao':'locacao','tipo_locacao_dia':'locacao_dia'}
     gerado_image = True
@@ -240,14 +289,15 @@ class Imoveis(object):
         retorno = {}
         if len(images) > 0:
             for v in images:
-                retorno[v['id']] = v
-                retorno[v['id']]['arquivo'] = self.get_image_nome(v,False)
-                retorno[v['id']]['original'] = self.get_image_nome(v,True)
-                retorno[v['id']]['titulo'] = v['titulo']
-                if v['titulo'] and v['titulo'].strip():
-                    retorno[v['id']]['titulo'] = self.get_campo_imovel('nome')
-                retorno[v['id']]['id'] = v['id']
-                retorno[v['id']]['gerado_image'] = v['gerado_image']
+                y = v
+                retorno[y['id']] = y
+                retorno[y['id']]['original'] = self.get_image_nome(y,True)
+                retorno[y['id']]['arquivo'] = self.get_image_nome(y,False)
+                retorno[y['id']]['titulo'] = y['titulo']
+                if y['titulo'] and y['titulo'].strip():
+                    retorno[y['id']]['titulo'] = self.get_campo_imovel('nome')
+                retorno[y['id']]['id'] = y['id']
+                retorno[y['id']]['gerado_image'] = y['gerado_image']
         return retorno
     
     def set_gerado(self,status):
