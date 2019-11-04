@@ -1,4 +1,18 @@
+#############################################
+# ############## POW INTERNET ############# #
+# Controle de imóveis portais imobiliarios  #
+# Acessa RESTAPIImoveis                     #
+# Data 31.10.2019                           #
+# Uso,                                      #
+# tags: localhost                           #
+# -verbose
+# 
+#
+#
+###########################################
+
 # -*- coding: utf-8 -*-
+
 import requests
 import datetime
 import time
@@ -53,11 +67,27 @@ class Imoveis(object):
         
     def integra_mongo(self):
         g = {}
-        g['limit'] = 140
+        g['limit'] = 1400
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
         try:
             itens = requests.get(self.URL_GET, params=g)
             status_code = itens.status_code
+        except requests.exceptions.HTTPError as errh:
+            status_code = 500
+            if 'verbose' in self.argumentos:
+                print ("Http Error:",errh)
+        except requests.exceptions.ConnectionError as errc:
+            status_code = 500
+            if 'verbose' in self.argumentos:
+                print ("Error Connecting:",errc)
+        except requests.exceptions.Timeout as errt:
+            status_code = 500
+            if 'verbose' in self.argumentos:
+                print ("Timeout Error:",errt)
+        except requests.exceptions.RequestException as err:
+            status_code = 500
+            if 'verbose' in self.argumentos:
+                print ("OOps: Something Else",err)
         except:
             status_code = 500
         data_log_dados['status_code'] = status_code
