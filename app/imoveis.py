@@ -67,7 +67,7 @@ class Imoveis(object):
         
     def integra_mongo(self):
         g = {}
-        g['limit'] = 1400
+        g['limit'] = 140
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
         try:
             itens = requests.get(self.URL_GET, params=g)
@@ -144,7 +144,10 @@ class Imoveis(object):
                 item[f] = 0
         for f in self.var_latitude:
             if f in item and item[f]:
-                item[f] = float(self.retira_string(item[f],'float'))
+                try:
+                    item[f] = float(self.retira_string(item[f],'float'))
+                except:
+                    item[f] = None
             else:
                 item[f] = None
         for i in self.var_int:
@@ -162,13 +165,14 @@ class Imoveis(object):
         if 'longitude' in item and 'latitude' in item:
             item['location'] = [item['longitude'],item['latitude']]
         item['ordem'] = self.get_ordem(item)
+        item['integra'] = 'python'
         return item
     
     def retira_string(self,valor,tipo):
         if ( isinstance(valor,float) and tipo is 'float' ) or ( isinstance(valor,int) and tipo is 'int' ):
             return valor
         v = str(valor).strip()
-        alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZçã/'
+        alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZçã/,'
         for a in alfa:
             if a in v:
                 v = v.replace(a,'')
@@ -302,7 +306,7 @@ class Imoveis(object):
         arquivo = self.url_image + self.arquivo_formato
         return arquivo.format(image['id_empresa'],image['id_imovel'],image['id_imovel'],image['id'],image['extensao'])
     
-    def get_image_nome(self,image, original):
+    def get_image_nome(self,image, original,qtde, total):
         if 'http' in image['arquivo']:
             if original:
                 return image['arquivo']
@@ -310,19 +314,23 @@ class Imoveis(object):
                 if image['gerado_image'] == 1:
                     return self.set_arquivo_destaque(image)
                 else:
-                    self.set_gerado(False)
+                    if total <= 20 and qtde <= 20:
+                        self.set_gerado(False)
                     return image['arquivo']
         else:
             return 'https://www.pow.com.br/powsites/{}/imo/650F_{}'.format(image['id_empresa'],image['arquivo'])
     
     def set_images(self,images):
         retorno = {}
-        if len(images) > 0:
+        gerado = 0
+        total_images = len(images)
+        if total_images > 0:
             for v in images:
+                gerado = gerado + 1
                 y = v
                 retorno[y['id']] = y
-                retorno[y['id']]['original'] = self.get_image_nome(y,True)
-                retorno[y['id']]['arquivo'] = self.get_image_nome(y,False)
+                retorno[y['id']]['original'] = self.get_image_nome(y,True,gerado, total_images)
+                retorno[y['id']]['arquivo'] = self.get_image_nome(y,False,gerado, total_images)
                 retorno[y['id']]['titulo'] = y['titulo']
                 if y['titulo'] and y['titulo'].strip():
                     retorno[y['id']]['titulo'] = self.get_campo_imovel('nome')
