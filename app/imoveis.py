@@ -164,6 +164,8 @@ class Imoveis(object):
                 item['imovel_para'].append(p)
         if 'longitude' in item and 'latitude' in item:
             item['location'] = [item['longitude'],item['latitude']]
+        item['id_empresa'] = str(item['id_empresa'])
+        item['id'] = str(item['id'])
         item['ordem'] = self.get_ordem(item)
         item['integra'] = 'python'
         return item
