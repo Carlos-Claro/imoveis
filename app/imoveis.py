@@ -330,14 +330,15 @@ class Imoveis(object):
             for v in images:
                 gerado = gerado + 1
                 y = v
-                retorno[y['id']] = y
-                retorno[y['id']]['original'] = self.get_image_nome(y,True,gerado, total_images)
-                retorno[y['id']]['arquivo'] = self.get_image_nome(y,False,gerado, total_images)
-                retorno[y['id']]['titulo'] = y['titulo']
+                chave = '{}{}'.format(y['ordem'],y['id'])
+                retorno[chave] = y
+                retorno[chave]['original'] = self.get_image_nome(y,True,gerado, total_images)
+                retorno[chave]['arquivo'] = self.get_image_nome(y,False,gerado, total_images)
+                retorno[chave]['titulo'] = y['titulo']
                 if y['titulo'] and y['titulo'].strip():
-                    retorno[y['id']]['titulo'] = self.get_campo_imovel('nome')
-                retorno[y['id']]['id'] = y['id']
-                retorno[y['id']]['gerado_image'] = y['gerado_image']
+                    retorno[chave]['titulo'] = self.get_campo_imovel('nome')
+                retorno[chave]['id'] = y['id']
+                retorno[chave]['gerado_image'] = y['gerado_image']
         return retorno
     
     def set_gerado(self,status):
