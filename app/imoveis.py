@@ -323,22 +323,24 @@ class Imoveis(object):
             return 'https://www.pow.com.br/powsites/{}/imo/650F_{}'.format(image['id_empresa'],image['arquivo'])
     
     def set_images(self,images):
-        retorno = {}
+        retorno = []
         gerado = 0
         total_images = len(images)
         if total_images > 0:
             for v in images:
                 gerado = gerado + 1
                 y = v
-                chave = '{:0<15}'.format('{}{}'.format(y['ordem'],y['id']))
-                retorno[chave] = y
-                retorno[chave]['original'] = self.get_image_nome(y,True,gerado, total_images)
-                retorno[chave]['arquivo'] = self.get_image_nome(y,False,gerado, total_images)
-                retorno[chave]['titulo'] = y['titulo']
+                imovel = {}
+                imovel = y
+                imovel['original'] = self.get_image_nome(y,True,gerado, total_images)
+                imovel['arquivo'] = self.get_image_nome(y,False,gerado, total_images)
+                imovel['titulo'] = y['titulo']
                 if y['titulo'] and y['titulo'].strip():
-                    retorno[chave]['titulo'] = self.get_campo_imovel('nome')
-                retorno[chave]['id'] = y['id']
-                retorno[chave]['gerado_image'] = y['gerado_image']
+                    imovel['titulo'] = self.get_campo_imovel('nome')
+                imovel['id'] = y['id']
+                imovel['gerado_image'] = y['gerado_image']
+                retorno.append(imovel)
+                del imovel
         return retorno
     
     def set_gerado(self,status):
