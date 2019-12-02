@@ -316,8 +316,7 @@ class Imoveis(object):
                 if image['gerado_image'] == 1:
                     return self.set_arquivo_destaque(image)
                 elif image['gerado_image'] == 0:
-                    if total <= 20 and qtde <= 20:
-                        self.set_gerado(False)
+                    self.set_gerado(False)
                     return image['arquivo']
                 else:
                     return image['arquivo']
