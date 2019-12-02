@@ -315,9 +315,11 @@ class Imoveis(object):
             else:
                 if image['gerado_image'] == 1:
                     return self.set_arquivo_destaque(image)
-                else:
+                elif image['gerado_image'] == 0:
                     if total <= 20 and qtde <= 20:
                         self.set_gerado(False)
+                    return image['arquivo']
+                else:
                     return image['arquivo']
         else:
             return 'https://www.pow.com.br/powsites/{}/imo/650F_{}'.format(image['id_empresa'],image['arquivo'])
