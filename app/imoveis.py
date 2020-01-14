@@ -321,7 +321,7 @@ class Imoveis(object):
                 else:
                     return image['arquivo']
         else:
-            return 'https://www.pow.com.br/powsites/{}/imo/650F_{}'.format(image['id_empresa'],image['arquivo'])
+            return 'https://www.pow.com.br/powsites/{}/imo/{}/650F_{}'.format(image['id_empresa'],image['id_imoveis'],image['arquivo'])
     
     def set_images(self,images):
         retorno = []
