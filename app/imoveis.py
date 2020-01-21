@@ -20,7 +20,7 @@ import os
 import sys
 import json
 import random
-
+from requests.auth import HTTPBasicAuth
 
 class Imoveis(object):
     
@@ -33,6 +33,11 @@ class Imoveis(object):
         else:
             self.localhost = False
             self.URI = 'http://imoveis.powempresas.com/'
+        with open('../../../json/keys.json') as json_file:
+            data = json.load(json_file)
+        self.user = data['basic']['user']
+        self.passwd = data['basic']['passwd']
+        self.auth = HTTPBasicAuth(self.user,self.passwd)
         self.inicio = time.time()
         self.URL_GET = self.URI + 'imoveis_integra/'
         self.URL_GET_MONGO = self.URI + 'imoveismongo/'
@@ -70,7 +75,7 @@ class Imoveis(object):
         g['limit'] = 250
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
         try:
-            itens = requests.get(self.URL_GET, params=g)
+            itens = requests.get(self.URL_GET, params=g, auth=self.auth)
             status_code = itens.status_code
         except requests.exceptions.HTTPError as errh:
             status_code = 500
@@ -112,7 +117,7 @@ class Imoveis(object):
             post = self.set_item(v)
             data_log['ordem'] = post['ordem']
             try:
-                res = requests.post(self.URL_POST,json=json.dumps(post))
+                res = requests.post(self.URL_POST,json=json.dumps(post), auth=self.auth)
                 status_code = res.status_code
             except:
                 status_code = 500
@@ -255,7 +260,7 @@ class Imoveis(object):
     def post_relevancia(self,ordem):
         data = self.get_data_relevancia()
         try:
-            rel = requests.post(self.URL_RELEVANCIA, params=data)
+            rel = requests.post(self.URL_RELEVANCIA, params=data, auth=self.auth)
             status_code = rel.status_code
         except:
             status_code = 500
@@ -270,13 +275,13 @@ class Imoveis(object):
             data['ordem'] = ordem
             data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             try:
-                log = requests.post(self.URL_RELEVANCIA_LOG, params=data)
+                log = requests.post(self.URL_RELEVANCIA_LOG, params=data, auth=self.auth)
             except:
                 pass
             data_up = {}
             data_up['integra_mongo_db'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             try:
-                upd = requests.put(self.URL_PUT + str(data['id_imovel']), params=data_up)
+                upd = requests.put(self.URL_PUT + str(data['id_imovel']), params=data_up, auth=self.auth)
                 status_code_up = rel.status_code
             except:
                 status_code_up = 500
@@ -289,7 +294,7 @@ class Imoveis(object):
         
     
     def get_relevancia(self, data):
-        itens = requests.get(self.URL_RELEVANCIA, params=data)
+        itens = requests.get(self.URL_RELEVANCIA, params=data, auth=self.auth)
         qtde = itens.json()
         if qtde < 9:
             return random.randrange(self.faixas[qtde]['min'],self.faixas[qtde]['max'])
