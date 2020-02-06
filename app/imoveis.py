@@ -27,13 +27,18 @@ class Imoveis(object):
     def __init__(self):
         self.inicio = time.time()
         self.args = sys.argv
+        endereco = '/var/www/json/keys.json'
         if 'localhost' in self.args:
             self.localhost = True
             self.URI = 'http://localhost:5000/'
+        elif 'programacao' in self.args:
+            self.localhost = True
+            self.URI = 'http://localhost:5000/'
+            endereco = '/home/www/json/keys.json'
         else:
             self.localhost = False
             self.URI = 'http://imoveis.powempresas.com/'
-        with open('../../../json/keys.json') as json_file:
+        with open(endereco) as json_file:
             data = json.load(json_file)
         self.user = data['basic']['user']
         self.passwd = data['basic']['passwd']
@@ -78,23 +83,29 @@ class Imoveis(object):
             itens = requests.get(self.URL_GET, params=g, auth=self.auth)
             status_code = itens.status_code
         except requests.exceptions.HTTPError as errh:
-            status_code = 500
+            status_code = 403
             if 'verbose' in self.argumentos:
-                print ("Http Error:",errh)
+                print("Http Error:",errh)
+            pass
         except requests.exceptions.ConnectionError as errc:
-            status_code = 500
+            status_code = 401
             if 'verbose' in self.argumentos:
-                print ("Error Connecting:",errc)
+                print("Error Connecting:",errc)
+            pass
         except requests.exceptions.Timeout as errt:
-            status_code = 500
+            status_code = 408
             if 'verbose' in self.argumentos:
-                print ("Timeout Error:",errt)
+                print("Timeout Error:",errt)
+            pass
         except requests.exceptions.RequestException as err:
-            status_code = 500
+            status_code = 400
             if 'verbose' in self.argumentos:
-                print ("OOps: Something Else",err)
+                print("OOps: Something Else",err)
+            pass
         except:
             status_code = 500
+            print("OOps: Something Else")
+            pass
         data_log_dados['status_code'] = status_code
         if status_code == 200:
             i = itens.json()
