@@ -77,7 +77,9 @@ class Imoveis(object):
         
     def integra_mongo(self):
         g = {}
-        g['limit'] = 100
+        g['limit'] = 200
+        if 'qtde' in self.argumentos:
+            g['limit'] = self.argumentos['qtde']
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
         try:
             itens = requests.get(self.URL_GET, params=g, auth=self.auth)
