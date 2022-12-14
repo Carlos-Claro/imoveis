@@ -33,8 +33,8 @@ class Imoveis(object):
             self.URI = 'http://localhost:5000/'
         elif 'programacao' in self.args:
             self.localhost = True
-            self.URI = 'http://localhost:5000/'
-            endereco = '/home/www/json/keys.json'
+            self.URI = 'http://172.20.0.2/'
+            endereco = '../keys.json'
         else:
             self.localhost = False
             self.URI = 'http://imoveis.powempresas.com/'
@@ -54,7 +54,8 @@ class Imoveis(object):
         self.ARQUIVO_LOG = '/var/log/sistema/integra_mongo.log'
         self.FORMATO_LOG = '{data} - status_code {status_code} - empresa {id_empresa} - id {id} - ordem {ordem} - funcao: {acao} - tempo: {tempo} '
         self.FORMATO_LOG_DADOS = '{data} - status_code {status_code} - qtde: {qtde} - funcao: {acao}_totais - tempo: {tempo} '
-        self.FORMATO_LOG_RELEVANCIA = '{data} - status_code {status_code} - empresa {id_empresa} - id {id} - ordem {ordem} - funcao: {acao}'
+        self.FORMATO_LOG_RELEVANCIA = '{data} - status_code {status_code} - empresa {id_empresa} - id {id} - ordem {ordem} - funcao: {acao} - tempo: {tempo}'
+        self.FORMATO_LOG_BUSCA = '{data} - status_code {status_code} - qtde: {qtde} - funcao: {acao} - tempo: {tempo}'
         self.argumentos = {}
         for a in self.args:
             if '-' in a:
@@ -63,7 +64,20 @@ class Imoveis(object):
                 self.argumentos[cortado[1]] = self.args[posicao_e+1]
         self.set_acao()
         
-        
+    # arquivo = log, dados, relevancia
+    def set_log(self, data, arquivo):
+        if 'dados' in arquivo:
+            linha = self.FORMATO_LOG_DADOS.format(**data)
+        elif 'relevancia' in arquivo:
+            linha = self.FORMATO_LOG_RELEVANCIA.format(**data)
+        elif 'busca' in arquivo:
+            linha = self.FORMATO_LOG_BUSCA.format(**data)
+        else:
+            linha = self.FORMATO_LOG.format(**data)
+        with open(self.ARQUIVO_LOG,'a') as arq:
+            arq.write(linha)
+            arq.write('\r\n')
+
     def set_acao(self):
         if 'python -m unittest' not in self.args:
             if 'a' in self.argumentos:
@@ -81,6 +95,8 @@ class Imoveis(object):
         if 'qtde' in self.argumentos:
             g['limit'] = self.argumentos['qtde']
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
+        
+        inicio_query = time.time()
         try:
             itens = requests.get(self.URL_GET, params=g, auth=self.auth)
             status_code = itens.status_code
@@ -108,6 +124,10 @@ class Imoveis(object):
             status_code = 500
             print("OOps: Something Else")
             pass
+        fim_query = time.time()
+        tempo_query = fim_query - inicio_query
+        data_query = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'query_mysql','qtde':g['limit'], 'status_code':status_code, 'tempo':tempo_query}
+        self.set_log(data_query, 'busca')
         data_log_dados['status_code'] = status_code
         if status_code == 200:
             i = itens.json()
@@ -116,10 +136,8 @@ class Imoveis(object):
                 self.processa_itens(i)
         self.fim = time.time()
         data_log_dados['tempo'] = self.fim-self.inicio
-        linha = self.FORMATO_LOG_DADOS.format(**data_log_dados)
-        with open(self.ARQUIVO_LOG,'a') as arq:
-            arq.write(linha)
-            arq.write('\r\n')
+        self.set_log(data_log_dados, 'dados')
+
     
     imovel_ativo = {}
     
@@ -142,10 +160,8 @@ class Imoveis(object):
             tempo_f = time.time()
             data_log['tempo'] = tempo_f - tempo_i
             del tempo_i, tempo_f
-            linha = self.FORMATO_LOG.format(**data_log)
-            with open(self.ARQUIVO_LOG,'a') as arq:
-                arq.write(linha)
-                arq.write('\r\n')
+            self.set_log(data_log, 'log')
+            
     
     def set_item(self,item):
         self.set_imovel(item)
@@ -189,7 +205,7 @@ class Imoveis(object):
         return item
     
     def retira_string(self,valor,tipo):
-        if ( isinstance(valor,float) and tipo is 'float' ) or ( isinstance(valor,int) and tipo is 'int' ):
+        if ( isinstance(valor,float) and tipo == 'float' ) or ( isinstance(valor,int) and tipo == 'int' ):
             return valor
         v = str(valor).strip()
         alfa = 'abcdefghijklmnopqrstuvyxz ABCDEFGHIJKLMNOPQRSTUVYXZçã/,'
@@ -247,7 +263,7 @@ class Imoveis(object):
         for k,v in self.valores_ordem.items():
             if k in item:
                 if v['comparacao'] == 'string':
-                    if not isinstance(item[k],str) or item[k] is '':
+                    if not isinstance(item[k],str) or item[k] == '':
                         self.set_negativos(v['pontos'])
                 elif v['comparacao'] == 'not_0':
                     if item[k] == 0:
@@ -272,6 +288,7 @@ class Imoveis(object):
     
     def post_relevancia(self,ordem):
         data = self.get_data_relevancia()
+        inicio_time_relevancia = time.time()
         try:
             rel = requests.post(self.URL_RELEVANCIA, params=data, auth=self.auth)
             status_code = rel.status_code
@@ -279,11 +296,10 @@ class Imoveis(object):
             status_code = 500
         data_log_r = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'relevancia','ordem':ordem,'id':self.get_campo_imovel('id'),'id_empresa':self.get_campo_imovel('id_empresa')}
         data_log_r['status_code'] = status_code
-        linha = self.FORMATO_LOG_RELEVANCIA.format(**data_log_r)
-        with open(self.ARQUIVO_LOG,'a') as arq:
-            arq.write(linha)
-            arq.write('\r\n')
-        if status_code is 200:
+        fim_time_relevancia = time.time()
+        data_log_r['tempo'] = fim_time_relevancia-inicio_time_relevancia
+        self.set_log(data_log_r, 'relevancia')
+        if status_code == 200:
             data['id_imovel'] = self.get_campo_imovel('id')
             data['ordem'] = ordem
             data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -300,12 +316,9 @@ class Imoveis(object):
                 status_code_up = 500
             data_log_r['status_code'] = status_code_up
             data_log_r['acao'] = 'updateMySQL'
-            linha = self.FORMATO_LOG_RELEVANCIA.format(**data_log_r)
-            with open(self.ARQUIVO_LOG,'a') as arq:
-                arq.write(linha)
-                arq.write('\r\n')
-        
-    
+            self.set_log(data_log_r, 'relevancia')
+            
+            
     def get_relevancia(self, data):
         itens = requests.get(self.URL_RELEVANCIA, params=data, auth=self.auth)
         qtde = itens.json()
