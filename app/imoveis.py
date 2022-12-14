@@ -319,14 +319,24 @@ class Imoveis(object):
             data['ordem'] = ordem
             data['data'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             try:
+                inicio_post = time.time()
                 log = requests.post(self.URL_RELEVANCIA_LOG, params=data, auth=self.auth)
+                fim_post = time.time()
+                tempo_post = fim_post-inicio_post
+                data_log_ = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':status_code, 'acao':'post_relevancia_log','ordem':data['ordem'],'id':data['id_imovel'],'id_empresa':data['id_empresa'], 'tempo': tempo_post}
+                self.set_log(data_log_,'log')
             except:
                 pass
             data_up = {}
             data_up['integra_mongo_db'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             try:
+                inicio_put = time.time()
                 upd = requests.put(self.URL_PUT + str(data['id_imovel']), params=data_up, auth=self.auth)
                 status_code_up = rel.status_code
+                fim_put = time.time()
+                tempo_put = fim_put-inicio_put
+                data_log_put = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':status_code_up, 'acao':'put_','ordem':data['ordem'],'id':data['id_imovel'],'id_empresa':data['id_empresa'], 'tempo': tempo_put}
+                self.set_log(data_log_put,'log')
             except:
                 status_code_up = 500
             data_log_r['status_code'] = status_code_up
