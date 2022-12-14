@@ -148,13 +148,23 @@ class Imoveis(object):
             post = self.set_item(v)
             data_log['ordem'] = post['ordem']
             try:
+                inicio_post = time.time()
                 res = requests.post(self.URL_POST,json=json.dumps(post), auth=self.auth)
                 status_code = res.status_code
+                fim_post = time.time()
+                tempo_post = fim_post-inicio_post
+                data_log_ = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':status_code, 'acao':'post_item','ordem':0,'id':v['id'],'id_empresa':v['id_empresa'], 'tempo': tempo_post}
+                self.set_log(data_log_,'log')
             except:
                 status_code = 500
             data_log['status_code'] = status_code
             if status_code == 200:
+                inicio_post_re = time.time()
                 self.post_relevancia(post['ordem'])
+                fim_post_re = time.time()
+                tempo_post_re = fim_post_re-inicio_post_re
+                data_log_re = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':0, 'acao':'post_relevancia','ordem':0,'id':v['id'],'id_empresa':v['id_empresa'], 'tempo': tempo_post_re}
+                self.set_log(data_log_re,'log')
             del post
             del res
             tempo_f = time.time()
@@ -164,6 +174,7 @@ class Imoveis(object):
             
     
     def set_item(self,item):
+        inicio_set_item = time.time()
         self.set_imovel(item)
         self.set_gerado(True)
         if 'images' in item:
@@ -202,6 +213,10 @@ class Imoveis(object):
         item['id'] = str(item['id'])
         item['ordem'] = self.get_ordem(item)
         item['integra'] = 'python'
+        fim_set_item = time.time()
+        tempo_set_item = fim_set_item-inicio_set_item
+        data_log = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':200, 'acao':'set_item','ordem':item['ordem'],'id':item['id'],'id_empresa':item['id_empresa'], 'tempo': tempo_set_item}
+        self.set_log(data_log,'log')
         return item
     
     def retira_string(self,valor,tipo):
@@ -318,7 +333,7 @@ class Imoveis(object):
             data_log_r['acao'] = 'updateMySQL'
             self.set_log(data_log_r, 'relevancia')
             
-            
+
     def get_relevancia(self, data):
         itens = requests.get(self.URL_RELEVANCIA, params=data, auth=self.auth)
         qtde = itens.json()
