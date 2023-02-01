@@ -94,6 +94,8 @@ class Imoveis(object):
         g['limit'] = 200
         if 'qtde' in self.argumentos:
             g['limit'] = self.argumentos['qtde']
+        if 'id_empresa' in self.argumentos:
+            g['id_empresa'] = self.argumentos['id_empresa']
         data_log_dados = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'acao':'integra_mongo','qtde':0}
         
         inicio_query = time.time()
@@ -154,7 +156,8 @@ class Imoveis(object):
                 fim_post = time.time()
                 tempo_post = fim_post-inicio_post
                 data_log_ = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':status_code, 'acao':'post_item','ordem':0,'id':v['id'],'id_empresa':v['id_empresa'], 'tempo': tempo_post}
-                self.set_log(data_log_,'log')
+                if 'completo' in self.argumentos:
+                    self.set_log(data_log_,'log')
             except:
                 status_code = 500
             data_log['status_code'] = status_code
@@ -164,13 +167,15 @@ class Imoveis(object):
                 fim_post_re = time.time()
                 tempo_post_re = fim_post_re-inicio_post_re
                 data_log_re = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':0, 'acao':'post_relevancia','ordem':0,'id':v['id'],'id_empresa':v['id_empresa'], 'tempo': tempo_post_re}
-                self.set_log(data_log_re,'log')
+                if 'completo' in self.argumentos:
+                    self.set_log(data_log_re,'log')
             del post
             del res
             tempo_f = time.time()
             data_log['tempo'] = tempo_f - tempo_i
             del tempo_i, tempo_f
-            self.set_log(data_log, 'log')
+            if 'completo' in self.argumentos:
+                self.set_log(data_log, 'log')
             
     
     def set_item(self,item):
@@ -216,7 +221,9 @@ class Imoveis(object):
         fim_set_item = time.time()
         tempo_set_item = fim_set_item-inicio_set_item
         data_log = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':200, 'acao':'set_item','ordem':item['ordem'],'id':item['id'],'id_empresa':item['id_empresa'], 'tempo': tempo_set_item}
-        self.set_log(data_log,'log')
+        if 'completo' in self.argumentos:
+            self.set_log(data_log,'log')
+        
         return item
     
     def retira_string(self,valor,tipo):
@@ -313,7 +320,8 @@ class Imoveis(object):
         data_log_r['status_code'] = status_code
         fim_time_relevancia = time.time()
         data_log_r['tempo'] = fim_time_relevancia-inicio_time_relevancia
-        self.set_log(data_log_r, 'relevancia')
+        if 'completo' in self.argumentos:
+            self.set_log(data_log_r, 'relevancia')
         if status_code == 200:
             data['id_imovel'] = self.get_campo_imovel('id')
             data['ordem'] = ordem
@@ -336,12 +344,14 @@ class Imoveis(object):
                 fim_put = time.time()
                 tempo_put = fim_put-inicio_put
                 data_log_put = {'data':datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 'status_code':status_code_up, 'acao':'put_','ordem':data['ordem'],'id':data['id_imovel'],'id_empresa':data['id_empresa'], 'tempo': tempo_put}
-                self.set_log(data_log_put,'log')
+                if 'completo' in self.argumentos:
+                    self.set_log(data_log_put,'log')
             except:
                 status_code_up = 500
             data_log_r['status_code'] = status_code_up
             data_log_r['acao'] = 'updateMySQL'
-            self.set_log(data_log_r, 'relevancia')
+            if 'completo' in self.argumentos:
+                self.set_log(data_log_r, 'relevancia')
             
 
     def get_relevancia(self, data):
